@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Long Game - Financial Literacy Adventure</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Title Screen -->
+        <div id="screen-title" class="screen active">
+            <div class="title-container">
+                <div class="title-decoration">💰🎮💎</div>
+                <h1 class="game-title">The Long Game</h1>
+                <p class="game-subtitle">Learn to grow your money (and spot the traps!)</p>
+                
+                <div class="mode-selection">
+                    <button class="mode-btn junior-btn" onclick="Game.startJuniorMode()">
+                        <span class="mode-icon">🐢</span>
+                        <span class="mode-name">Piggy Bank Adventures</span>
+                        <span class="mode-age">Ages 8-10</span>
+                    </button>
+                    
+                    <button class="mode-btn standard-btn" onclick="Game.startStandardMode()" disabled>
+                        <span class="mode-icon">📈</span>
+                        <span class="mode-name">The Long Game</span>
+                        <span class="mode-age">Coming Soon!</span>
+                    </button>
+                </div>
+                
+                <button class="leaderboard-btn" onclick="UI.showLeaderboard()">
+                    🏆 Leaderboard
+                </button>
+            </div>
+        </div>
+
+        <!-- Goal Selection Screen (Jr. Mode) -->
+        <div id="screen-goal" class="screen">
+            <div class="goal-container">
+                <h2>What are you saving for?</h2>
+                <p class="goal-subtitle">Pick your goal! You'll start with $100 and try to reach $500.</p>
+                
+                <div class="goal-options">
+                    <button class="goal-btn" onclick="Game.selectGoal('bike')">
+                        <span class="goal-icon">🚲</span>
+                        <span class="goal-name">New Bike</span>
+                    </button>
+                    <button class="goal-btn" onclick="Game.selectGoal('gaming')">
+                        <span class="goal-icon">🎮</span>
+                        <span class="goal-name">Gaming Setup</span>
+                    </button>
+                    <button class="goal-btn" onclick="Game.selectGoal('pet')">
+                        <span class="goal-icon">🐕</span>
+                        <span class="goal-name">Pet Supplies</span>
+                    </button>
+                    <button class="goal-btn" onclick="Game.selectGoal('trip')">
+                        <span class="goal-icon">🎢</span>
+                        <span class="goal-name">Theme Park Trip</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Game Screen (Jr. Mode) -->
+        <div id="screen-game" class="screen">
+            <header class="game-header">
+                <div class="turn-display">
+                    <span class="turn-label">Month</span>
+                    <span id="turn-number" class="turn-number">1</span>
+                    <span class="turn-total">/ 10</span>
+                </div>
+                
+                <div class="money-display">
+                    <span class="money-icon">💵</span>
+                    <span id="current-money" class="money-amount">$100</span>
+                </div>
+                
+                <div class="goal-display">
+                    <span class="goal-label">Goal:</span>
+                    <span id="goal-icon" class="goal-icon-small">🚲</span>
+                    <span id="goal-amount">$500</span>
+                </div>
+            </header>
+
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill" style="width: 20%"></div>
+                    <div class="progress-markers">
+                        <span class="marker" style="left: 0%">$0</span>
+                        <span class="marker" style="left: 50%">$250</span>
+                        <span class="marker" style="left: 100%">$500</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Allocation Phase -->
+            <div id="phase-allocate" class="game-phase">
+                <h2 class="phase-title">Where will you put your money?</h2>
+                <p class="phase-instruction">Click a character to invest, then click "Next Month" when ready!</p>
+                
+                <div class="characters-container">
+                    <div class="character-card" data-character="shelly" onclick="Game.toggleAllocation('shelly')">
+                        <div class="character-avatar shelly">🐢</div>
+                        <h3 class="character-name">Shelly the Turtle</h3>
+                        <p class="character-desc">Slow and steady wins the race!</p>
+                        <div class="character-stats">
+                            <span class="stat safe">Safe</span>
+                            <span class="stat-detail">+2-3% each month</span>
+                        </div>
+                        <div class="allocation-display">
+                            <span class="allocation-label">Invested:</span>
+                            <span id="alloc-shelly" class="allocation-amount">$0</span>
+                        </div>
+                        <div class="allocation-controls">
+                            <button class="alloc-btn minus" onclick="event.stopPropagation(); Game.adjustAllocation('shelly', -10)">-$10</button>
+                            <button class="alloc-btn plus" onclick="event.stopPropagation(); Game.adjustAllocation('shelly', 10)">+$10</button>
+                        </div>
+                    </div>
+
+                    <div class="character-card" data-character="goldie" onclick="Game.toggleAllocation('goldie')">
+                        <div class="character-avatar goldie">🪿</div>
+                        <h3 class="character-name">Goldie the Goose</h3>
+                        <p class="character-desc">Lays golden eggs... usually!</p>
+                        <div class="character-stats">
+                            <span class="stat moderate">Moderate</span>
+                            <span class="stat-detail">-10% to +15%</span>
+                        </div>
+                        <div class="allocation-display">
+                            <span class="allocation-label">Invested:</span>
+                            <span id="alloc-goldie" class="allocation-amount">$0</span>
+                        </div>
+                        <div class="allocation-controls">
+                            <button class="alloc-btn minus" onclick="event.stopPropagation(); Game.adjustAllocation('goldie', -10)">-$10</button>
+                            <button class="alloc-btn plus" onclick="event.stopPropagation(); Game.adjustAllocation('goldie', 10)">+$10</button>
+                        </div>
+                    </div>
+
+                    <div class="character-card" data-character="rocket" onclick="Game.toggleAllocation('rocket')">
+                        <div class="character-avatar rocket">🐰</div>
+                        <h3 class="character-name">Rocket Rabbit</h3>
+                        <p class="character-desc">To the moon! ...or the ground.</p>
+                        <div class="character-stats">
+                            <span class="stat risky">Risky!</span>
+                            <span class="stat-detail">-80% to +200%</span>
+                        </div>
+                        <div class="allocation-display">
+                            <span class="allocation-label">Invested:</span>
+                            <span id="alloc-rocket" class="allocation-amount">$0</span>
+                        </div>
+                        <div class="allocation-controls">
+                            <button class="alloc-btn minus" onclick="event.stopPropagation(); Game.adjustAllocation('rocket', -10)">-$10</button>
+                            <button class="alloc-btn plus" onclick="event.stopPropagation(); Game.adjustAllocation('rocket', 10)">+$10</button>
+                        </div>
+                    </div>
+
+                    <div class="character-card" data-character="mystery" onclick="Game.toggleAllocation('mystery')">
+                        <div class="character-avatar mystery">📦</div>
+                        <h3 class="character-name">Mystery Box</h3>
+                        <p class="character-desc">Exciting! Sparkly! Usually empty!</p>
+                        <div class="character-stats">
+                            <span class="stat dangerous">Dangerous!</span>
+                            <span class="stat-detail">-90% to +50%</span>
+                        </div>
+                        <div class="allocation-display">
+                            <span class="allocation-label">Invested:</span>
+                            <span id="alloc-mystery" class="allocation-amount">$0</span>
+                        </div>
+                        <div class="allocation-controls">
+                            <button class="alloc-btn minus" onclick="event.stopPropagation(); Game.adjustAllocation('mystery', -10)">-$10</button>
+                            <button class="alloc-btn plus" onclick="event.stopPropagation(); Game.adjustAllocation('mystery', 10)">+$10</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cash-remaining">
+                    <span class="cash-label">Cash remaining:</span>
+                    <span id="cash-remaining" class="cash-amount">$100</span>
+                    <span class="cash-note">(stays safe but doesn't grow)</span>
+                </div>
+
+                <button id="next-month-btn" class="action-btn primary" onclick="Game.nextMonth()">
+                    Next Month →
+                </button>
+            </div>
+
+            <!-- Event Phase -->
+            <div id="phase-event" class="game-phase hidden">
+                <div class="event-card">
+                    <div id="event-icon" class="event-icon">🎉</div>
+                    <h2 id="event-title" class="event-title">Something happened!</h2>
+                    <p id="event-description" class="event-description">Event description here</p>
+                    
+                    <div id="event-choices" class="event-choices">
+                        <!-- Choices populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Phase -->
+            <div id="phase-results" class="game-phase hidden">
+                <h2 class="phase-title">Month Results</h2>
+                
+                <div id="results-container" class="results-container">
+                    <!-- Results populated by JS -->
+                </div>
+
+                <div class="results-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">Started with:</span>
+                        <span id="result-start" class="summary-value">$100</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Investment gains:</span>
+                        <span id="result-gains" class="summary-value gains">+$5</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Events:</span>
+                        <span id="result-events" class="summary-value">$0</span>
+                    </div>
+                    <div class="summary-item total">
+                        <span class="summary-label">New Total:</span>
+                        <span id="result-total" class="summary-value">$105</span>
+                    </div>
+                </div>
+
+                <button class="action-btn primary" onclick="Game.continueGame()">
+                    Continue →
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="screen-gameover" class="screen">
+            <div class="gameover-container">
+                <div id="gameover-icon" class="gameover-icon">🎉</div>
+                <h1 id="gameover-title" class="gameover-title">You Did It!</h1>
+                <p id="gameover-message" class="gameover-message">Message here</p>
+                
+                <div class="final-stats">
+                    <div class="final-stat">
+                        <span class="final-label">Final Amount</span>
+                        <span id="final-money" class="final-value">$523</span>
+                    </div>
+                    <div class="final-stat">
+                        <span class="final-label">Months Played</span>
+                        <span id="final-turns" class="final-value">8</span>
+                    </div>
+                    <div class="final-stat">
+                        <span class="final-label">Best Investment</span>
+                        <span id="final-best" class="final-value">Shelly 🐢</span>
+                    </div>
+                </div>
+
+                <div id="lessons-learned" class="lessons-learned">
+                    <h3>What We Learned:</h3>
+                    <ul id="lessons-list">
+                        <!-- Populated by JS -->
+                    </ul>
+                </div>
+
+                <div class="gameover-actions">
+                    <button class="action-btn primary" onclick="Game.playAgain()">Play Again</button>
+                    <button class="action-btn secondary" onclick="UI.showLeaderboard()">View Leaderboard</button>
+                    <button class="action-btn secondary" onclick="UI.showTitle()">Main Menu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leaderboard Modal -->
+        <div id="modal-leaderboard" class="modal hidden">
+            <div class="modal-content">
+                <button class="modal-close" onclick="UI.hideLeaderboard()">×</button>
+                <h2 class="modal-title">🏆 Leaderboard</h2>
+                
+                <div class="leaderboard-tabs">
+                    <button class="tab-btn active" onclick="UI.showLeaderboardTab('best')">Best Runs</button>
+                    <button class="tab-btn" onclick="UI.showLeaderboardTab('recent')">Recent Games</button>
+                </div>
+                
+                <div id="leaderboard-content" class="leaderboard-content">
+                    <!-- Populated by JS -->
+                </div>
+                
+                <button class="action-btn secondary" onclick="Storage.clearLeaderboard()">Clear History</button>
+            </div>
+        </div>
+
+        <!-- Info Modal (Why Does This Have Value?) -->
+        <div id="modal-info" class="modal hidden">
+            <div class="modal-content">
+                <button class="modal-close" onclick="UI.hideInfo()">×</button>
+                <h2 id="info-title" class="modal-title">About This Investment</h2>
+                <div id="info-content" class="info-content">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
