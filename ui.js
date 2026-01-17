@@ -1,128 +1,95 @@
-/* ===========================================
+/* ============================================
    THE LONG GAME - UI
-   DOM manipulation and screen management
-   =========================================== */
+   Display management and visual effects
+   ============================================ */
 
 const UI = {
+    // Initialize UI
+    init() {
+        this.createFloatingCoins();
+        this.updateLeaderboard();
+    },
+    
     // Screen management
-    screens: {
-        title: document.getElementById('screen-title'),
-        goal: document.getElementById('screen-goal'),
-        game: document.getElementById('screen-game'),
-        gameover: document.getElementById('screen-gameover')
+    showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
     },
     
-    // Show a specific screen
-    showScreen: function(screenName) {
-        // Hide all screens
-        Object.values(this.screens).forEach(screen => {
-            screen.classList.remove('active');
-        });
-        
-        // Show requested screen
-        if (this.screens[screenName]) {
-            this.screens[screenName].classList.add('active');
-        }
+    showTitle() {
+        this.showScreen('screen-title');
     },
     
-    showTitle: function() {
-        this.showScreen('title');
+    showGoals() {
+        this.showScreen('screen-goals');
     },
     
-    showGoalSelection: function() {
-        this.showScreen('goal');
+    showGame() {
+        this.showScreen('screen-game');
     },
     
-    showGame: function() {
-        this.showScreen('game');
-    },
-    
-    showGameOver: function(won, data) {
-        this.showScreen('gameover');
+    showGameOver(won, data) {
+        this.showScreen('screen-gameover');
         
         const icon = document.getElementById('gameover-icon');
         const title = document.getElementById('gameover-title');
         const message = document.getElementById('gameover-message');
-        const finalMoney = document.getElementById('final-money');
-        const finalTurns = document.getElementById('final-turns');
-        const finalBest = document.getElementById('final-best');
-        const lessonsList = document.getElementById('lessons-list');
         
         if (won) {
             icon.textContent = '🎉';
-            title.textContent = 'You Did It!';
-            message.textContent = `You reached your goal of $${data.goal}! Great job saving up!`;
+            title.textContent = 'AMAZING!';
+            message.textContent = `You reached $${data.goal}! You're a savings superstar!`;
+            this.triggerConfetti();
         } else if (data.money <= 0) {
-            icon.textContent = '😢';
-            title.textContent = 'Out of Money!';
-            message.textContent = "You ran out of money. But that's okay—this is how we learn! Try again?";
+            icon.textContent = '💸';
+            title.textContent = 'BROKE!';
+            message.textContent = "You ran out of money! But that's how we learn. Try again?";
         } else {
             icon.textContent = '⏰';
-            title.textContent = 'Time\'s Up!';
-            message.textContent = `You reached $${data.money} out of $${data.goal}. So close! Want to try again?`;
+            title.textContent = 'TIME UP!';
+            message.textContent = `You reached $${data.money} of $${data.goal}. So close!`;
         }
         
-        finalMoney.textContent = '$' + data.money;
-        finalTurns.textContent = data.turn;
-        finalBest.textContent = data.bestInvestment || 'None';
+        document.getElementById('stat-money').textContent = '$' + data.money;
+        document.getElementById('stat-months').textContent = data.months;
+        document.getElementById('stat-best').textContent = data.bestPick || '—';
         
-        // Populate lessons
-        lessonsList.innerHTML = '';
+        const list = document.getElementById('lessons-list');
+        list.innerHTML = '';
         data.lessons.forEach(lesson => {
             const li = document.createElement('li');
             li.textContent = lesson;
-            lessonsList.appendChild(li);
+            list.appendChild(li);
         });
     },
     
-    // Game phase management
-    phases: {
-        allocate: document.getElementById('phase-allocate'),
-        event: document.getElementById('phase-event'),
-        results: document.getElementById('phase-results')
+    // Phase management
+    showPhase(id) {
+        document.querySelectorAll('.phase').forEach(p => p.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
     },
     
-    showPhase: function(phaseName) {
-        Object.values(this.phases).forEach(phase => {
-            phase.classList.add('hidden');
-        });
+    // Update displays
+    updateHUD(state) {
+        document.getElementById('month-num').textContent = state.month;
+        document.getElementById('money-display').textContent = '$' + state.money;
+        document.getElementById('cash-remaining').textContent = '$' + this.getCashRemaining(state);
         
-        if (this.phases[phaseName]) {
-            this.phases[phaseName].classList.remove('hidden');
-        }
+        const progress = Math.min(100, (state.money / GameData.config.goalAmount) * 100);
+        document.getElementById('progress-fill').style.width = progress + '%';
     },
     
-    // Update header displays
-    updateTurn: function(turn, maxTurns) {
-        document.getElementById('turn-number').textContent = turn;
+    getCashRemaining(state) {
+        const allocated = Object.values(state.allocations).reduce((a, b) => a + b, 0);
+        return state.money - allocated;
     },
     
-    updateMoney: function(money, animate = false) {
-        const el = document.getElementById('current-money');
-        el.textContent = '$' + money;
+    updateAllocation(char, amount, state) {
+        document.getElementById('invest-' + char).textContent = '$' + amount;
+        document.getElementById('cash-remaining').textContent = '$' + this.getCashRemaining(state);
         
-        if (animate) {
-            el.classList.add('pulse');
-            setTimeout(() => el.classList.remove('pulse'), 500);
-        }
-    },
-    
-    updateProgress: function(money, goal) {
-        const percentage = Math.min(100, (money / goal) * 100);
-        document.getElementById('progress-fill').style.width = percentage + '%';
-    },
-    
-    updateGoalDisplay: function(goalKey) {
-        const goal = GameData.junior.goals[goalKey];
-        document.getElementById('goal-icon').textContent = goal.emoji;
-    },
-    
-    // Allocation display
-    updateAllocation: function(characterId, amount) {
-        document.getElementById('alloc-' + characterId).textContent = '$' + amount;
-        
-        // Update card selection state
-        const card = document.querySelector(`.character-card[data-character="${characterId}"]`);
+        // Update card selected state
+        const card = document.querySelector(`[data-char="${char}"]`);
         if (amount > 0) {
             card.classList.add('selected');
         } else {
@@ -130,201 +97,209 @@ const UI = {
         }
     },
     
-    updateCashRemaining: function(amount) {
-        document.getElementById('cash-remaining').textContent = '$' + amount;
+    setGoalEmoji(goalKey) {
+        const goal = GameData.goals[goalKey];
+        document.getElementById('goal-emoji').textContent = goal.emoji;
+    },
+    
+    resetAllocations() {
+        ['shelly', 'goldie', 'rocket', 'mystery'].forEach(char => {
+            document.getElementById('invest-' + char).textContent = '$0';
+            document.querySelector(`[data-char="${char}"]`).classList.remove('selected');
+        });
     },
     
     // Event display
-    showEvent: function(event, callback) {
-        this.showPhase('event');
+    showEvent(event, callback) {
+        this.showPhase('phase-event');
         
         document.getElementById('event-icon').textContent = event.icon;
         document.getElementById('event-title').textContent = event.title;
-        document.getElementById('event-description').textContent = event.description;
+        document.getElementById('event-desc').textContent = event.description;
         
-        const choicesContainer = document.getElementById('event-choices');
-        choicesContainer.innerHTML = '';
+        const container = document.getElementById('event-choices');
+        container.innerHTML = '';
         
-        if (event.choices) {
-            event.choices.forEach((choice, index) => {
-                const btn = document.createElement('button');
-                btn.className = 'event-choice-btn';
-                btn.textContent = choice.text;
-                
-                // Style based on effect
-                if (typeof choice.effect === 'number') {
-                    if (choice.effect > 0) btn.classList.add('positive');
-                    else if (choice.effect < 0) btn.classList.add('negative');
-                }
-                
-                btn.onclick = () => callback(choice);
-                choicesContainer.appendChild(btn);
-            });
-        } else {
-            // Automatic event (windfall or mandatory expense)
+        event.choices.forEach(choice => {
             const btn = document.createElement('button');
-            btn.className = 'event-choice-btn';
-            
-            if (event.amount > 0) {
-                btn.textContent = `Nice! +$${event.amount}`;
-                btn.classList.add('positive');
-            } else if (event.amount < 0) {
-                btn.textContent = `Pay $${Math.abs(event.amount)}`;
-                btn.classList.add('negative');
-            } else {
-                btn.textContent = 'Continue';
-            }
-            
-            btn.onclick = () => callback({ effect: event.amount || 0 });
-            choicesContainer.appendChild(btn);
-        }
+            btn.className = 'event-btn';
+            if (choice.type === 'good') btn.classList.add('good');
+            if (choice.type === 'bad') btn.classList.add('bad');
+            btn.textContent = choice.text;
+            btn.onclick = () => callback(choice);
+            container.appendChild(btn);
+        });
     },
     
     // Results display
-    showResults: function(results, startMoney, endMoney, eventEffect) {
-        this.showPhase('results');
+    showResults(results, startMoney, endMoney, eventEffect, month) {
+        this.showPhase('phase-results');
         
-        const container = document.getElementById('results-container');
-        container.innerHTML = '';
+        document.getElementById('result-month').textContent = month;
         
-        let totalGains = 0;
+        const grid = document.getElementById('results-grid');
+        grid.innerHTML = '';
         
-        // Show each investment result
-        results.forEach((result, index) => {
-            if (result.invested > 0) {
-                totalGains += result.change;
+        let investmentTotal = 0;
+        
+        results.forEach((r, i) => {
+            if (r.invested > 0) {
+                investmentTotal += r.change;
                 
                 const card = document.createElement('div');
-                card.className = 'result-card';
-                card.style.animationDelay = (index * 0.1) + 's';
+                card.className = 'result-card ' + (r.change >= 0 ? 'positive' : 'negative');
+                card.style.animationDelay = (i * 0.1) + 's';
                 
-                const char = GameData.junior.characters[result.characterId];
-                
+                const char = GameData.characters[r.char];
                 card.innerHTML = `
-                    <div class="result-avatar">${char.emoji}</div>
+                    <div class="result-emoji">${char.emoji}</div>
                     <div class="result-name">${char.name}</div>
-                    <div class="result-invested">Invested: $${result.invested}</div>
-                    <div class="result-change ${result.change >= 0 ? 'positive' : 'negative'}">
-                        ${result.change >= 0 ? '+' : ''}$${result.change}
+                    <div class="result-invested">Invested: $${r.invested}</div>
+                    <div class="result-change ${r.change >= 0 ? 'positive' : 'negative'}">
+                        ${r.change >= 0 ? '+' : ''}$${r.change}
                     </div>
                 `;
-                
-                container.appendChild(card);
+                grid.appendChild(card);
             }
         });
         
-        // Update summary
-        document.getElementById('result-start').textContent = '$' + startMoney;
+        // If nothing invested
+        if (grid.children.length === 0) {
+            grid.innerHTML = `
+                <div class="result-card">
+                    <div class="result-emoji">🏦</div>
+                    <div class="result-name">Cash</div>
+                    <div class="result-invested">Kept safe</div>
+                    <div class="result-change">$0</div>
+                </div>
+            `;
+        }
         
-        const gainsEl = document.getElementById('result-gains');
-        gainsEl.textContent = (totalGains >= 0 ? '+' : '') + '$' + totalGains;
-        gainsEl.className = 'summary-value ' + (totalGains >= 0 ? 'gains' : 'losses');
+        // Summary
+        document.getElementById('summary-start').textContent = '$' + startMoney;
         
-        const eventsEl = document.getElementById('result-events');
+        const investEl = document.getElementById('summary-invest');
+        investEl.textContent = (investmentTotal >= 0 ? '+' : '') + '$' + investmentTotal;
+        investEl.className = investmentTotal >= 0 ? 'positive' : 'negative';
+        
+        const eventRow = document.getElementById('summary-event-row');
+        const eventEl = document.getElementById('summary-event');
         if (eventEffect !== 0) {
-            eventsEl.textContent = (eventEffect >= 0 ? '+' : '') + '$' + eventEffect;
-            eventsEl.className = 'summary-value ' + (eventEffect >= 0 ? 'gains' : 'losses');
+            eventRow.style.display = 'flex';
+            eventEl.textContent = (eventEffect >= 0 ? '+' : '') + '$' + eventEffect;
+            eventEl.className = eventEffect >= 0 ? 'positive' : 'negative';
         } else {
-            eventsEl.textContent = '$0';
-            eventsEl.className = 'summary-value';
+            eventRow.style.display = 'none';
         }
         
-        document.getElementById('result-total').textContent = '$' + endMoney;
-    },
-    
-    // Leaderboard modal
-    showLeaderboard: function() {
-        document.getElementById('modal-leaderboard').classList.remove('hidden');
-        this.showLeaderboardTab('best');
-    },
-    
-    hideLeaderboard: function() {
-        document.getElementById('modal-leaderboard').classList.add('hidden');
-    },
-    
-    showLeaderboardTab: function(tab) {
-        // Update tab buttons
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        event.target.classList.add('active');
+        document.getElementById('summary-total').textContent = '$' + endMoney;
         
-        const content = document.getElementById('leaderboard-content');
-        let entries;
-        
-        if (tab === 'best') {
-            entries = Storage.getLeaderboard();
-        } else {
-            entries = Storage.getRecentRuns(10);
-        }
+        // Update HUD
+        document.getElementById('money-display').textContent = '$' + endMoney;
+        const progress = Math.min(100, (endMoney / GameData.config.goalAmount) * 100);
+        document.getElementById('progress-fill').style.width = progress + '%';
+    },
+    
+    // Modal management
+    showLeaderboard() {
+        this.updateLeaderboard();
+        document.getElementById('modal-leaderboard').classList.add('active');
+    },
+    
+    showHowToPlay() {
+        document.getElementById('modal-howto').classList.add('active');
+    },
+    
+    closeModal() {
+        document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+    },
+    
+    updateLeaderboard() {
+        const list = document.getElementById('leaderboard-list');
+        const entries = Storage.getLeaderboard();
         
         if (entries.length === 0) {
-            content.innerHTML = '<div class="empty-leaderboard">No games played yet!<br>Play a game to get on the board!</div>';
+            list.innerHTML = '<div class="empty-state">No games yet! Play to get on the board.</div>';
             return;
         }
         
-        content.innerHTML = '';
-        entries.forEach((entry, index) => {
-            const div = document.createElement('div');
-            div.className = 'leaderboard-entry';
-            
+        list.innerHTML = '';
+        entries.slice(0, 10).forEach((entry, i) => {
+            const goal = GameData.goals[entry.goal] || { name: 'Game', emoji: '🎯' };
             let rankClass = '';
-            if (tab === 'best') {
-                if (index === 0) rankClass = 'gold';
-                else if (index === 1) rankClass = 'silver';
-                else if (index === 2) rankClass = 'bronze';
-            }
+            if (i === 0) rankClass = 'gold';
+            if (i === 1) rankClass = 'silver';
+            if (i === 2) rankClass = 'bronze';
             
-            const goalEmoji = GameData.junior.goals[entry.goal]?.emoji || '🎯';
-            
+            const div = document.createElement('div');
+            div.className = 'lb-entry';
             div.innerHTML = `
-                <div class="leaderboard-rank ${rankClass}">${tab === 'best' ? '#' + (index + 1) : goalEmoji}</div>
-                <div class="leaderboard-details">
-                    <div class="leaderboard-name">${entry.won ? '🏆 ' : ''}${entry.goal ? GameData.junior.goals[entry.goal]?.name : 'Game'}</div>
-                    <div class="leaderboard-meta">${entry.date} • ${entry.turns} months</div>
+                <div class="lb-rank ${rankClass}">${i < 3 ? ['🥇','🥈','🥉'][i] : '#' + (i + 1)}</div>
+                <div class="lb-info">
+                    <div class="lb-goal">${entry.won ? '🏆 ' : ''}${goal.name}</div>
+                    <div class="lb-meta">${entry.date} • ${entry.months} months</div>
                 </div>
-                <div class="leaderboard-score">$${entry.finalMoney}</div>
+                <div class="lb-score">$${entry.money}</div>
             `;
-            
-            content.appendChild(div);
+            list.appendChild(div);
         });
     },
     
-    // Info modal
-    showInfo: function(characterId) {
-        const char = GameData.junior.characters[characterId];
+    // Visual effects
+    createFloatingCoins() {
+        const container = document.getElementById('floating-coins');
+        const coins = ['🪙', '💰', '💵', '✨'];
         
-        document.getElementById('info-title').textContent = char.name;
-        document.getElementById('info-content').innerHTML = `
-            <div style="text-align: center; font-size: 4rem; margin-bottom: 20px;">${char.emoji}</div>
-            <h3>Why does ${char.name.split(' ')[0]} have value?</h3>
-            <p style="margin-bottom: 20px;">${char.whyValue}</p>
-            <h3>The Lesson</h3>
-            <p>${char.lesson}</p>
-        `;
-        
-        document.getElementById('modal-info').classList.remove('hidden');
+        for (let i = 0; i < 15; i++) {
+            const coin = document.createElement('div');
+            coin.className = 'floating-coin';
+            coin.textContent = coins[Math.floor(Math.random() * coins.length)];
+            coin.style.left = Math.random() * 100 + '%';
+            coin.style.animationDelay = Math.random() * 20 + 's';
+            coin.style.animationDuration = (15 + Math.random() * 10) + 's';
+            container.appendChild(coin);
+        }
     },
     
-    hideInfo: function() {
-        document.getElementById('modal-info').classList.add('hidden');
+    triggerConfetti() {
+        const container = document.getElementById('confetti');
+        const colors = ['#00d4ff', '#00ff88', '#ffd700', '#ff6b35', '#a855f7', '#ff4757'];
+        
+        for (let i = 0; i < 80; i++) {
+            setTimeout(() => {
+                const piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                piece.style.left = Math.random() * 100 + '%';
+                piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.animationDuration = (2 + Math.random() * 2) + 's';
+                if (Math.random() > 0.5) piece.style.borderRadius = '50%';
+                container.appendChild(piece);
+                
+                setTimeout(() => piece.remove(), 4000);
+            }, i * 30);
+        }
     },
     
-    // Floating money animation
-    showMoneyChange: function(amount, x, y) {
-        const el = document.createElement('div');
-        el.className = 'money-change ' + (amount >= 0 ? 'positive' : 'negative');
-        el.textContent = (amount >= 0 ? '+' : '') + '$' + amount;
-        el.style.left = x + 'px';
-        el.style.top = y + 'px';
-        
-        document.body.appendChild(el);
-        
-        setTimeout(() => el.remove(), 1000);
-    },
-    
-    // Reset allocation display
-    resetAllocations: function() {
-        ['shelly', 'goldie', 'rocket', 'mystery'].forEach(id => {
-            this.updateAllocation(id, 0);
-        });
+    // Screen shake for losses
+    shake() {
+        document.body.style.animation = 'none';
+        document.body.offsetHeight; // Reflow
+        document.body.style.animation = 'shake 0.4s ease';
     }
 };
+
+// Add shake keyframes dynamically
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-10px); }
+        40% { transform: translateX(10px); }
+        60% { transform: translateX(-5px); }
+        80% { transform: translateX(5px); }
+    }
+`;
+document.head.appendChild(style);
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => UI.init());
