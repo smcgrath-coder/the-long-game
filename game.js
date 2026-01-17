@@ -1,19 +1,17 @@
-/* ===========================================
+/* ============================================
    THE LONG GAME - GAME LOGIC
    Core game loop and state management
-   =========================================== */
+   ============================================ */
 
 const Game = {
-    // Current game state
     state: null,
     
-    // Initialize default state
-    getDefaultState: function() {
+    // Initialize new game state
+    createState() {
         return {
-            mode: 'junior',
-            turn: 1,
-            money: GameData.junior.startingMoney,
-            goal: GameData.junior.goalAmount,
+            month: 1,
+            money: GameData.config.startingMoney,
+            goal: GameData.config.goalAmount,
             goalKey: null,
             allocations: {
                 shelly: 0,
@@ -21,11 +19,9 @@ const Game = {
                 rocket: 0,
                 mystery: 0
             },
-            history: [],
             stats: {
-                totalInvested: { shelly: 0, goldie: 0, rocket: 0, mystery: 0 },
-                totalReturns: { shelly: 0, goldie: 0, rocket: 0, mystery: 0 },
-                eventsEncountered: 0,
+                invested: { shelly: 0, goldie: 0, rocket: 0, mystery: 0 },
+                returns: { shelly: 0, goldie: 0, rocket: 0, mystery: 0 },
                 fomoResisted: 0,
                 fomoGaveIn: 0,
                 scamsAvoided: 0,
@@ -34,364 +30,273 @@ const Game = {
         };
     },
     
-    // Start Junior Mode
-    startJuniorMode: function() {
-        this.state = this.getDefaultState();
-        UI.showGoalSelection();
+    // Start game
+    start() {
+        this.state = this.createState();
+        UI.showGoals();
     },
     
-    // Start Standard Mode (placeholder)
-    startStandardMode: function() {
-        alert('Standard Mode coming soon! Try Junior Mode for now.');
-    },
-    
-    // Select goal and start game
-    selectGoal: function(goalKey) {
-        this.state.goalKey = goalKey;
-        UI.updateGoalDisplay(goalKey);
-        this.startGame();
-    },
-    
-    // Start the game proper
-    startGame: function() {
+    // Select goal and begin
+    selectGoal(key) {
+        this.state.goalKey = key;
+        UI.setGoalEmoji(key);
         UI.showGame();
-        UI.showPhase('allocate');
-        this.updateUI();
+        UI.showPhase('phase-allocate');
+        UI.updateHUD(this.state);
+        UI.resetAllocations();
     },
     
-    // Update all UI elements
-    updateUI: function() {
-        UI.updateTurn(this.state.turn, GameData.junior.maxTurns);
-        UI.updateMoney(this.state.money);
-        UI.updateProgress(this.state.money, this.state.goal);
-        UI.updateCashRemaining(this.getCashRemaining());
+    // Adjust allocation
+    adjust(char, delta) {
+        const current = this.state.allocations[char];
+        const remaining = UI.getCashRemaining(this.state);
         
-        // Update allocations
-        Object.keys(this.state.allocations).forEach(id => {
-            UI.updateAllocation(id, this.state.allocations[id]);
-        });
+        let newAmount = current + delta;
+        
+        // Clamp
+        if (newAmount < 0) newAmount = 0;
+        if (delta > 0 && delta > remaining) newAmount = current + remaining;
+        if (newAmount > this.state.money) newAmount = this.state.money;
+        
+        // Round to 10
+        newAmount = Math.round(newAmount / 10) * 10;
+        
+        this.state.allocations[char] = newAmount;
+        UI.updateAllocation(char, newAmount, this.state);
     },
     
-    // Get unallocated cash
-    getCashRemaining: function() {
-        const allocated = Object.values(this.state.allocations).reduce((a, b) => a + b, 0);
-        return this.state.money - allocated;
-    },
-    
-    // Adjust allocation for a character
-    adjustAllocation: function(characterId, delta) {
-        const currentAlloc = this.state.allocations[characterId];
-        const cashRemaining = this.getCashRemaining();
-        
-        let newAlloc = currentAlloc + delta;
-        
-        // Can't go below 0
-        if (newAlloc < 0) newAlloc = 0;
-        
-        // Can't exceed available cash
-        if (delta > 0 && delta > cashRemaining) {
-            newAlloc = currentAlloc + cashRemaining;
-        }
-        
-        // Round to nearest 10
-        newAlloc = Math.round(newAlloc / 10) * 10;
-        
-        this.state.allocations[characterId] = newAlloc;
-        
-        UI.updateAllocation(characterId, newAlloc);
-        UI.updateCashRemaining(this.getCashRemaining());
-    },
-    
-    // Toggle allocation (click on card)
-    toggleAllocation: function(characterId) {
-        // If already has allocation, show info
-        // Otherwise, do nothing (use +/- buttons)
-    },
-    
-    // Proceed to next month
-    nextMonth: function() {
-        // Calculate investment returns
-        const results = this.calculateReturns();
-        
-        // Store starting money for results display
+    // End month - calculate returns
+    endMonth() {
         const startMoney = this.state.money;
-        
-        // Apply returns
-        let totalChange = 0;
-        results.forEach(result => {
-            totalChange += result.change;
-            
-            // Track stats
-            this.state.stats.totalInvested[result.characterId] += result.invested;
-            this.state.stats.totalReturns[result.characterId] += result.change;
-        });
-        
-        this.state.money += totalChange;
-        
-        // Record in history
-        this.state.history.push({
-            turn: this.state.turn,
-            allocations: { ...this.state.allocations },
-            results: results,
-            moneyBefore: startMoney,
-            moneyAfter: this.state.money
-        });
-        
-        // Random chance of event (60%)
-        if (Math.random() < 0.6) {
-            const event = GameData.getRandomEvent();
-            this.state.stats.eventsEncountered++;
-            
-            UI.showEvent(event, (choice) => {
-                this.handleEventChoice(event, choice, results, startMoney);
-            });
-        } else {
-            // No event, show results directly
-            this.showTurnResults(results, startMoney, 0);
-        }
-    },
-    
-    // Calculate returns for all investments
-    calculateReturns: function() {
         const results = [];
         
-        Object.keys(this.state.allocations).forEach(characterId => {
-            const invested = this.state.allocations[characterId];
+        // Calculate returns for each character
+        Object.keys(this.state.allocations).forEach(char => {
+            const invested = this.state.allocations[char];
+            let change = 0;
             
             if (invested > 0) {
-                const returnData = GameData.calculateReturn(characterId, invested);
-                results.push({
-                    characterId: characterId,
-                    invested: invested,
-                    rate: returnData.rate,
-                    change: returnData.change,
-                    newAmount: returnData.newAmount
-                });
-            } else {
-                results.push({
-                    characterId: characterId,
-                    invested: 0,
-                    rate: 0,
-                    change: 0,
-                    newAmount: 0
-                });
+                change = GameData.characters[char].calcReturn(invested);
+                
+                // Track stats
+                this.state.stats.invested[char] += invested;
+                this.state.stats.returns[char] += change;
             }
+            
+            results.push({ char, invested, change });
         });
         
-        return results;
+        // Apply returns
+        const totalChange = results.reduce((sum, r) => sum + r.change, 0);
+        this.state.money += totalChange;
+        if (this.state.money < 0) this.state.money = 0;
+        
+        // Store results for later
+        this.lastResults = results;
+        this.lastStartMoney = startMoney;
+        
+        // Check for event
+        if (Math.random() < GameData.config.eventChance) {
+            const event = GameData.getRandomEvent();
+            UI.showEvent(event, (choice) => this.handleEvent(event, choice));
+        } else {
+            this.showMonthResults(0);
+        }
     },
     
     // Handle event choice
-    handleEventChoice: function(event, choice, investmentResults, startMoney) {
-        let eventEffect = 0;
+    handleEvent(event, choice) {
+        let effect = 0;
         
-        if (typeof choice.effect === 'number') {
-            eventEffect = choice.effect;
+        if (choice.effect === 'gamble') {
+            // Gambling choice (scams, etc.)
+            if (Math.random() < choice.chance) {
+                effect = choice.reward - choice.cost;
+            } else {
+                effect = -choice.cost;
+            }
+            
+            if (event.isScam) {
+                this.state.stats.scamsFellFor++;
+            }
+        } else if (typeof choice.effect === 'number') {
+            effect = choice.effect;
             
             // Track FOMO/scam stats
-            if (event.type === 'fomo') {
+            if (event.isFomo) {
                 if (choice.effect < 0) {
                     this.state.stats.fomoGaveIn++;
-                } else {
+                } else if (choice.effect === 0) {
                     this.state.stats.fomoResisted++;
                 }
             }
-            if (event.type === 'temptation') {
-                if (choice.effect !== 0) {
-                    this.state.stats.scamsFellFor++;
-                } else {
-                    this.state.stats.scamsAvoided++;
-                }
-            }
-        } else if (choice.effect === 'gamble') {
-            // Handle gambling choices
-            this.state.money -= choice.cost;
-            
-            if (Math.random() < choice.chance) {
-                // Won!
-                eventEffect = choice.reward;
-            } else {
-                // Lost
-                eventEffect = 0;
-            }
-            
-            // Track stats
-            if (event.type === 'temptation') {
-                this.state.stats.scamsFellFor++;
+            if (event.isScam && choice.effect === 0) {
+                this.state.stats.scamsAvoided++;
             }
         }
         
-        // Apply event effect
-        this.state.money += eventEffect;
+        this.state.money += effect;
+        if (this.state.money < 0) this.state.money = 0;
         
-        // Update history with event
-        const lastHistory = this.state.history[this.state.history.length - 1];
-        if (lastHistory) {
-            lastHistory.event = event;
-            lastHistory.eventChoice = choice;
-            lastHistory.eventEffect = eventEffect;
-            lastHistory.moneyAfter = this.state.money;
+        this.showMonthResults(effect);
+    },
+    
+    // Show month results
+    showMonthResults(eventEffect) {
+        UI.showResults(
+            this.lastResults,
+            this.lastStartMoney,
+            this.state.money,
+            eventEffect,
+            this.state.month
+        );
+        
+        // Effects based on outcome
+        const totalChange = this.lastResults.reduce((sum, r) => sum + r.change, 0) + eventEffect;
+        if (totalChange < -20) {
+            UI.shake();
         }
-        
-        this.showTurnResults(investmentResults, startMoney, eventEffect);
     },
     
-    // Show turn results
-    showTurnResults: function(results, startMoney, eventEffect) {
-        UI.showResults(results, startMoney, this.state.money, eventEffect);
-        UI.updateMoney(this.state.money, true);
-        UI.updateProgress(this.state.money, this.state.goal);
-    },
-    
-    // Continue to next turn or end game
-    continueGame: function() {
-        // Check win/lose conditions
+    // Continue to next turn
+    nextTurn() {
+        // Check win
         if (this.state.money >= this.state.goal) {
             this.endGame(true);
             return;
         }
         
+        // Check lose
         if (this.state.money <= 0) {
             this.endGame(false);
             return;
         }
         
-        if (this.state.turn >= GameData.junior.maxTurns) {
+        // Check time
+        if (this.state.month >= GameData.config.maxTurns) {
             this.endGame(false);
             return;
         }
         
-        // Next turn
-        this.state.turn++;
-        
-        // Reset allocations
-        this.state.allocations = {
-            shelly: 0,
-            goldie: 0,
-            rocket: 0,
-            mystery: 0
-        };
+        // Next month
+        this.state.month++;
+        this.state.allocations = { shelly: 0, goldie: 0, rocket: 0, mystery: 0 };
         
         UI.resetAllocations();
-        UI.showPhase('allocate');
-        this.updateUI();
+        UI.showPhase('phase-allocate');
+        UI.updateHUD(this.state);
         
-        // Save game
         Storage.saveGame(this.state);
     },
     
-    // End the game
-    endGame: function(won) {
-        // Calculate best investment
-        let bestInvestment = null;
-        let bestReturn = -Infinity;
+    // End game
+    endGame(won) {
+        // Find best investment
+        let bestPick = null;
+        let bestROI = -Infinity;
         
-        Object.keys(this.state.stats.totalReturns).forEach(id => {
-            const invested = this.state.stats.totalInvested[id];
-            const returns = this.state.stats.totalReturns[id];
+        Object.keys(this.state.stats.returns).forEach(char => {
+            const invested = this.state.stats.invested[char];
+            const returns = this.state.stats.returns[char];
             
             if (invested > 0) {
                 const roi = returns / invested;
-                if (roi > bestReturn) {
-                    bestReturn = roi;
-                    bestInvestment = GameData.junior.characters[id].name + ' ' + GameData.junior.characters[id].emoji;
+                if (roi > bestROI) {
+                    bestROI = roi;
+                    bestPick = GameData.characters[char].emoji;
                 }
             }
         });
         
-        // Generate lessons based on behavior
-        const lessons = this.generateLessons();
+        // Generate lessons
+        const lessons = this.generateLessons(won);
         
-        // Prepare data for game over screen
-        const data = {
-            won: won,
+        // Save to leaderboard
+        Storage.addScore({
+            won,
             money: this.state.money,
-            goal: this.state.goal,
-            turn: this.state.turn,
-            bestInvestment: bestInvestment,
-            lessons: lessons
-        };
-        
-        // Add to leaderboard
-        const rank = Storage.addToLeaderboard({
-            won: won,
-            finalMoney: this.state.money,
             goal: this.state.goalKey,
-            turns: this.state.turn,
-            stats: this.state.stats
+            months: this.state.month
         });
         
-        // Clear saved game
         Storage.clearGame();
         
-        // Show game over screen
-        UI.showGameOver(won, data);
+        UI.showGameOver(won, {
+            money: this.state.money,
+            goal: this.state.goal,
+            months: this.state.month,
+            bestPick,
+            lessons
+        });
     },
     
-    // Generate lessons based on gameplay
-    generateLessons: function() {
+    // Generate lessons based on play
+    generateLessons(won) {
         const lessons = [];
-        const stats = this.state.stats;
+        const s = this.state.stats;
         
-        // Shelly lessons
-        if (stats.totalInvested.shelly > 0 && stats.totalReturns.shelly > 0) {
-            lessons.push(GameData.lessons.shellySuccess);
-        } else if (stats.totalInvested.shelly === 0) {
+        // Win lesson
+        if (won) {
+            lessons.push(GameData.lessons.won);
+        }
+        
+        // Shelly
+        if (s.invested.shelly > 50 && s.returns.shelly > 0) {
+            lessons.push(GameData.lessons.shellyWin);
+        } else if (s.invested.shelly === 0 && this.state.month > 3) {
             lessons.push(GameData.lessons.shellyIgnored);
         }
         
-        // Rocket lessons
-        if (stats.totalInvested.rocket > 0) {
-            if (stats.totalReturns.rocket < 0) {
+        // Rocket
+        if (s.invested.rocket > 30) {
+            if (s.returns.rocket < -10) {
                 lessons.push(GameData.lessons.rocketLoss);
-            } else if (stats.totalReturns.rocket > stats.totalInvested.rocket * 0.5) {
+            } else if (s.returns.rocket > s.invested.rocket * 0.3) {
                 lessons.push(GameData.lessons.rocketWin);
             }
         }
         
-        // Mystery Box lessons
-        if (stats.totalInvested.mystery > 0 && stats.totalReturns.mystery < 0) {
+        // Mystery
+        if (s.invested.mystery > 20 && s.returns.mystery < 0) {
             lessons.push(GameData.lessons.mysteryLoss);
-        } else if (stats.totalInvested.mystery === 0) {
-            lessons.push(GameData.lessons.mysteryIgnored);
+        } else if (s.invested.mystery === 0 && this.state.month > 3) {
+            lessons.push(GameData.lessons.mysteryAvoided);
         }
         
-        // FOMO lessons
-        if (stats.fomoGaveIn > 0) {
-            lessons.push(GameData.lessons.fomoSpending);
-        } else if (stats.fomoResisted > 0) {
+        // FOMO
+        if (s.fomoGaveIn > 1) {
+            lessons.push(GameData.lessons.fomoSpent);
+        } else if (s.fomoResisted > 1) {
             lessons.push(GameData.lessons.fomoResisted);
         }
         
-        // Ensure at least one lesson
+        // Scams
+        if (s.scamsAvoided > 0 && s.scamsFellFor === 0) {
+            lessons.push(GameData.lessons.scamAvoided);
+        }
+        
+        // Default
         if (lessons.length === 0) {
             lessons.push(GameData.lessons.patience);
         }
         
-        // Limit to 3 lessons
         return lessons.slice(0, 3);
     },
     
-    // Play again with same goal
-    playAgain: function() {
+    // Play again
+    playAgain() {
         const goalKey = this.state?.goalKey || 'bike';
-        this.state = this.getDefaultState();
+        this.state = this.createState();
         this.state.goalKey = goalKey;
-        UI.updateGoalDisplay(goalKey);
-        this.startGame();
+        UI.setGoalEmoji(goalKey);
+        UI.showGame();
+        UI.showPhase('phase-allocate');
+        UI.updateHUD(this.state);
+        UI.resetAllocations();
     }
 };
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Check for saved game
-    const savedGame = Storage.loadGame();
-    
-    if (savedGame && savedGame.turn > 1) {
-        // Could prompt to continue, for now just start fresh
-        // TODO: Add "Continue?" prompt
-    }
-    
-    // Start at title screen
+// Start on title screen
+document.addEventListener('DOMContentLoaded', () => {
     UI.showTitle();
 });
