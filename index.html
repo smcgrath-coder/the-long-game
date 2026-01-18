@@ -1,370 +1,727 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Long Game 💰</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Long Game - Financial Literacy Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .shake { animation: shake 0.5s ease-in-out; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+  </style>
 </head>
 <body>
-    <!-- Animated Background -->
-    <div class="bg-effects">
-        <div class="bg-gradient"></div>
-        <div class="bg-grid"></div>
-        <div class="floating-coins" id="floating-coins"></div>
-    </div>
-    
-    <!-- Confetti Container -->
-    <div id="confetti" class="confetti-container"></div>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
 
-    <div id="app">
-        <!-- ==================== TITLE SCREEN ==================== -->
-        <div id="screen-title" class="screen active">
-            <div class="title-content">
-                <div class="logo-container">
-                    <div class="coin-stack">
-                        <span class="coin c1">🪙</span>
-                        <span class="coin c2">🪙</span>
-                        <span class="coin c3">🪙</span>
-                    </div>
-                </div>
-                
-                <h1 class="main-title">
-                    <span class="title-the">THE</span>
-                    <span class="title-long">LONG</span>
-                    <span class="title-game">GAME</span>
-                </h1>
-                
-                <p class="tagline">Master money. Spot the traps. Build your future.</p>
-                
-                <div class="menu-buttons">
-                    <button class="btn btn-play" onclick="Game.start()">
-                        <span class="btn-icon">🎮</span>
-                        <span class="btn-text">PLAY NOW</span>
-                        <span class="btn-sub">Ages 8-12</span>
-                    </button>
-                    
-                    <button class="btn btn-secondary" onclick="UI.showLeaderboard()">
-                        <span class="btn-icon">🏆</span>
-                        <span class="btn-text">Leaderboard</span>
-                    </button>
-                    
-                    <button class="btn btn-secondary" onclick="UI.showHowToPlay()">
-                        <span class="btn-icon">❓</span>
-                        <span class="btn-text">How to Play</span>
-                    </button>
-                </div>
-                
-                <div class="character-preview">
-                    <div class="preview-char" data-tip="Safe & Steady">🐢</div>
-                    <div class="preview-char" data-tip="Usually Good">🪿</div>
-                    <div class="preview-char" data-tip="High Risk!">🐰</div>
-                    <div class="preview-char" data-tip="It's a Trap!">📦</div>
-                </div>
-            </div>
+    /*
+     * REALISTIC MARKET DATA (Based on historical returns)
+     * - Savings: Fed funds rate historically 0.5-5%, currently ~4-5%
+     * - Bonds: 10-year treasury ~4-6% historically  
+     * - Index Funds: S&P 500 averages ~10%/year, ranges -38% to +33%
+     * - Individual Stocks: Higher variance, most pickers underperform index
+     * - Crypto: Extreme volatility, -73% to +300% annual swings
+     * - Gambling: House edge means negative expected value always
+     */
+    const INVESTMENTS = [
+      {
+        id: 'savings',
+        name: 'Savings Account',
+        emoji: '🏦',
+        description: 'FDIC insured. Safe but slow growth.',
+        bgGradient: 'from-emerald-50 to-green-50',
+        borderColor: 'border-emerald-200',
+        textColor: 'text-emerald-600',
+        barColor: 'bg-emerald-500',
+        returnRange: { min: 2, max: 5 },
+        volatility: 'none',
+        riskLevel: 1,
+        explanation: 'Banks pay you interest to hold your money. Guaranteed by the government up to $250,000.'
+      },
+      {
+        id: 'bonds',
+        name: 'Government Bonds',
+        emoji: '📜',
+        description: 'Lend money to the government. Very safe.',
+        bgGradient: 'from-blue-50 to-indigo-50',
+        borderColor: 'border-blue-200',
+        textColor: 'text-blue-600',
+        barColor: 'bg-blue-500',
+        returnRange: { min: 3, max: 6 },
+        volatility: 'low',
+        riskLevel: 2,
+        explanation: 'The government borrows your money and promises to pay it back with interest.'
+      },
+      {
+        id: 'index',
+        name: 'Index Fund (S&P 500)',
+        emoji: '📈',
+        description: 'Own tiny pieces of 500 big companies.',
+        bgGradient: 'from-violet-50 to-purple-50',
+        borderColor: 'border-violet-200',
+        textColor: 'text-violet-600',
+        barColor: 'bg-violet-500',
+        returnRange: { min: -25, max: 30 },
+        volatility: 'medium',
+        expectedReturn: 10,
+        riskLevel: 3,
+        explanation: 'You own a tiny piece of 500 companies. Historically the best long-term choice for most people.'
+      },
+      {
+        id: 'stocks',
+        name: 'Stock Picking',
+        emoji: '🎯',
+        description: 'Pick individual companies. Hard to beat the index.',
+        bgGradient: 'from-orange-50 to-amber-50',
+        borderColor: 'border-orange-200',
+        textColor: 'text-orange-600',
+        barColor: 'bg-orange-500',
+        returnRange: { min: -40, max: 50 },
+        volatility: 'high',
+        expectedReturn: 7,
+        riskLevel: 4,
+        explanation: 'Picking winners is harder than it looks. Even professionals usually lose to index funds.'
+      },
+      {
+        id: 'crypto',
+        name: 'Crypto & Meme Coins',
+        emoji: '🪙',
+        description: 'To the moon... or to zero.',
+        bgGradient: 'from-purple-50 to-pink-50',
+        borderColor: 'border-purple-200',
+        textColor: 'text-purple-600',
+        barColor: 'bg-purple-500',
+        returnRange: { min: -70, max: 120 },
+        volatility: 'extreme',
+        expectedReturn: -10,
+        riskLevel: 5,
+        explanation: 'Crypto has no underlying value except what someone else will pay. Most retail traders lose money.'
+      },
+      {
+        id: 'gambling',
+        name: 'Sports Betting & Lottery',
+        emoji: '🎰',
+        description: 'The house always wins.',
+        bgGradient: 'from-red-50 to-rose-50',
+        borderColor: 'border-red-200',
+        textColor: 'text-red-600',
+        barColor: 'bg-red-500',
+        returnRange: { min: -80, max: 200 },
+        volatility: 'extreme',
+        expectedReturn: -25,
+        riskLevel: 5,
+        explanation: 'Gambling is mathematically designed to take your money. The odds are always against you.'
+      }
+    ];
+
+    const EARNING_EVENTS = [
+      { text: "💼 Weekly allowance", amount: 10 },
+      { text: "🏠 Extra chores around the house", amount: 15 },
+      { text: "🐕 Walked the neighbor's dog", amount: 20 },
+      { text: "🎂 Birthday money from grandma!", amount: 50 },
+      { text: "💵 Found $5 on the ground", amount: 5 },
+      { text: "📱 Sold old stuff online", amount: 25 },
+      { text: "🌟 Good grades bonus!", amount: 30 },
+      { text: "🧹 Helped with yard work", amount: 15 },
+      { text: "🎁 Holiday gift money", amount: 40 },
+      { text: "💻 Helped neighbor with tech", amount: 20 },
+    ];
+
+    const SPENDING_TEMPTATIONS = [
+      { text: "🎮 New video game everyone's playing", amount: 60, fomo: true },
+      { text: "👟 Cool new sneakers", amount: 80, fomo: true },
+      { text: "🎬 Movie night with friends", amount: 25, social: true },
+      { text: "🍕 Pizza party contribution", amount: 15, social: true },
+      { text: "📦 Mystery loot box (might be rare!)", amount: 10, gambling: true },
+      { text: "🎁 Friend's birthday gift", amount: 20, social: true },
+      { text: "🎪 Theme park trip", amount: 45, fun: true },
+      { text: "📱 In-app purchase for mobile game", amount: 5, gambling: true },
+      { text: "🧋 Boba tea hangout", amount: 8, social: true },
+      { text: "🎧 New headphones", amount: 50, want: true },
+      { text: "👕 Trendy clothes", amount: 35, fomo: true },
+      { text: "🎸 Concert tickets", amount: 75, fun: true },
+    ];
+
+    const EMERGENCY_EVENTS = [
+      { text: "📱 Phone screen cracked!", amount: 50 },
+      { text: "🚲 Bike needs repair", amount: 30 },
+      { text: "📚 School supplies needed", amount: 25 },
+      { text: "👓 Lost your sunglasses", amount: 20 },
+    ];
+
+    const MARKET_EVENTS = [
+      { name: '📈 Bull Market!', description: 'Economy is booming!', effects: { index: 1.4, stocks: 1.5, bonds: 1.1 } },
+      { name: '📉 Market Correction', description: 'Stocks dropped significantly', effects: { index: 0.6, stocks: 0.5, crypto: 0.7 } },
+      { name: '🚀 Crypto Hype!', description: 'Social media is going crazy', effects: { crypto: 1.8 } },
+      { name: '💥 Crypto Winter', description: 'Major crypto crash', effects: { crypto: 0.4 } },
+      { name: '🏦 Fed Raises Rates', description: 'Savings accounts pay more!', effects: { savings: 1.3, bonds: 1.15 } },
+      { name: '📊 Steady Year', description: 'Markets performed normally', effects: {} },
+      { name: '🌍 Global Uncertainty', description: 'Investors are nervous', effects: { index: 0.85, stocks: 0.8, bonds: 1.1 } },
+      { name: '🎲 Lucky Jackpot Winner!', description: 'Someone won big (not usually you)', effects: { gambling: 1.5 } },
+      { name: '💸 Inflation Spike', description: 'Money buys less', effects: { savings: 0.8, bonds: 0.9 } },
+      { name: '🏠 Economic Boom', description: 'Everything is growing', effects: { index: 1.3, stocks: 1.35, bonds: 1.1 } },
+    ];
+
+    // Card components
+    const Card = ({ children, className = '' }) => (
+      <div className={`bg-white rounded-xl shadow-sm border border-gray-100 ${className}`}>{children}</div>
+    );
+    const CardHeader = ({ children, className = '' }) => (
+      <div className={`px-5 py-4 border-b border-gray-100 ${className}`}>{children}</div>
+    );
+    const CardTitle = ({ children, className = '' }) => (
+      <h3 className={`text-lg font-semibold text-gray-800 flex items-center gap-2 ${className}`}>{children}</h3>
+    );
+    const CardContent = ({ children, className = '' }) => (
+      <div className={`px-5 py-4 ${className}`}>{children}</div>
+    );
+
+    const formatMoney = (amount) => new Intl.NumberFormat('en-US', {
+      style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0
+    }).format(amount);
+
+    const RiskIndicator = ({ level }) => (
+      <div className="flex gap-1">
+        {[1,2,3,4,5].map(i => (
+          <div key={i} className={`w-2 h-2 rounded-full ${i <= level ? 'bg-red-400' : 'bg-gray-200'}`} />
+        ))}
+      </div>
+    );
+
+    const MiniChart = ({ data, color }) => {
+      if (!data || data.length < 2) return null;
+      const maxVal = Math.max(...data);
+      const minVal = Math.min(...data);
+      const range = maxVal - minVal || 1;
+      return (
+        <div className="h-12 flex items-end gap-0.5">
+          {data.slice(-15).map((val, i) => (
+            <div key={i} className={`flex-1 rounded-t ${color} transition-all`}
+              style={{ height: `${Math.max(((val - minVal) / range) * 100, 5)}%`, opacity: 0.4 + (i * 0.04) }}
+            />
+          ))}
         </div>
+      );
+    };
 
-        <!-- ==================== GOAL SELECTION ==================== -->
-        <div id="screen-goals" class="screen">
-            <div class="goals-content">
-                <button class="back-btn" onclick="UI.showTitle()">← Back</button>
-                
-                <h2 class="screen-title">What are you saving for?</h2>
-                <p class="screen-subtitle">Pick your goal! You have <strong>10 months</strong> to turn <strong>$100</strong> into <strong>$500</strong></p>
-                
-                <div class="goals-grid">
-                    <button class="goal-card" onclick="Game.selectGoal('bike')">
-                        <span class="goal-emoji">🚲</span>
-                        <span class="goal-name">New Bike</span>
-                        <span class="goal-price">$500</span>
-                    </button>
-                    
-                    <button class="goal-card" onclick="Game.selectGoal('gaming')">
-                        <span class="goal-emoji">🎮</span>
-                        <span class="goal-name">Gaming Setup</span>
-                        <span class="goal-price">$500</span>
-                    </button>
-                    
-                    <button class="goal-card" onclick="Game.selectGoal('pet')">
-                        <span class="goal-emoji">🐕</span>
-                        <span class="goal-name">Pet Supplies</span>
-                        <span class="goal-price">$500</span>
-                    </button>
-                    
-                    <button class="goal-card" onclick="Game.selectGoal('trip')">
-                        <span class="goal-emoji">🎢</span>
-                        <span class="goal-name">Theme Park</span>
-                        <span class="goal-price">$500</span>
-                    </button>
-                </div>
-            </div>
-        </div>
+    // Realistic return calculation
+    const calculateReturn = (investment, marketEvent) => {
+      const { returnRange, volatility, expectedReturn } = investment;
+      let returnPercent;
+      
+      if (volatility === 'none') {
+        returnPercent = returnRange.min + Math.random() * (returnRange.max - returnRange.min);
+      } else if (volatility === 'low') {
+        returnPercent = returnRange.min + Math.random() * (returnRange.max - returnRange.min);
+      } else if (volatility === 'medium') {
+        // Normal distribution around expected return
+        const mean = expectedReturn || 10;
+        const stdDev = 12;
+        const u1 = Math.random(), u2 = Math.random();
+        const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+        returnPercent = Math.max(returnRange.min, Math.min(returnRange.max, mean + z * stdDev));
+      } else if (volatility === 'high') {
+        const mean = expectedReturn || 7;
+        const stdDev = 18;
+        const u1 = Math.random(), u2 = Math.random();
+        const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+        returnPercent = Math.max(returnRange.min, Math.min(returnRange.max, mean + z * stdDev));
+      } else {
+        // Extreme volatility: mostly losses, occasional big wins
+        const mean = expectedReturn || -15;
+        if (Math.random() < 0.7) {
+          returnPercent = mean + (Math.random() * 20) - 30;
+        } else {
+          returnPercent = Math.random() * (returnRange.max - 20);
+        }
+        returnPercent = Math.max(returnRange.min, Math.min(returnRange.max, returnPercent));
+      }
 
-        <!-- ==================== MAIN GAME ==================== -->
-        <div id="screen-game" class="screen">
-            <!-- Top HUD -->
-            <div class="game-hud">
-                <div class="hud-section hud-left">
-                    <div class="month-display">
-                        <span class="month-label">MONTH</span>
-                        <span class="month-value" id="month-num">1</span>
-                        <span class="month-total">of 10</span>
+      if (marketEvent && marketEvent.effects[investment.id]) {
+        returnPercent *= marketEvent.effects[investment.id];
+        returnPercent = Math.max(returnRange.min, Math.min(returnRange.max * 1.2, returnPercent));
+      }
+      return returnPercent / 100;
+    };
+
+    // Main Game
+    const TheLongGame = () => {
+      const [gamePhase, setGamePhase] = useState('intro');
+      const [year, setYear] = useState(1);
+      const [totalYears] = useState(20);
+      const [wallet, setWallet] = useState(100);
+      const [investments, setInvestments] = useState({});
+      const [totalHistory, setTotalHistory] = useState([100]);
+      const [turnPhase, setTurnPhase] = useState('earn');
+      const [currentEarning, setCurrentEarning] = useState(null);
+      const [currentTemptation, setCurrentTemptation] = useState(null);
+      const [currentMarketEvent, setCurrentMarketEvent] = useState(null);
+      const [yearResults, setYearResults] = useState(null);
+      const [pendingInvestment, setPendingInvestment] = useState(null);
+      const [investAmount, setInvestAmount] = useState('');
+      const [totalEarned, setTotalEarned] = useState(0);
+      const [totalSpent, setTotalSpent] = useState(0);
+      const [lifetimeHigh, setLifetimeHigh] = useState(100);
+
+      const getNetWorth = useCallback(() => {
+        return wallet + Object.values(investments).reduce((sum, inv) => sum + inv.amount, 0);
+      }, [wallet, investments]);
+
+      const startGame = () => {
+        setWallet(100);
+        setInvestments({});
+        setTotalHistory([100]);
+        setYear(1);
+        setTotalEarned(0);
+        setTotalSpent(0);
+        setLifetimeHigh(100);
+        setGamePhase('playing');
+        startNewYear();
+      };
+
+      const startNewYear = () => {
+        setCurrentEarning(EARNING_EVENTS[Math.floor(Math.random() * EARNING_EVENTS.length)]);
+        const roll = Math.random();
+        if (roll < 0.12) {
+          setCurrentTemptation({ ...EMERGENCY_EVENTS[Math.floor(Math.random() * EMERGENCY_EVENTS.length)], isEmergency: true });
+        } else if (roll < 0.8) {
+          setCurrentTemptation(SPENDING_TEMPTATIONS[Math.floor(Math.random() * SPENDING_TEMPTATIONS.length)]);
+        } else {
+          setCurrentTemptation(null);
+        }
+        setTurnPhase('earn');
+      };
+
+      const collectEarnings = () => {
+        setWallet(prev => prev + currentEarning.amount);
+        setTotalEarned(prev => prev + currentEarning.amount);
+        setTurnPhase('spend');
+      };
+
+      const handleSpendDecision = (spend) => {
+        if (spend && currentTemptation) {
+          const amount = Math.min(currentTemptation.amount, wallet);
+          setWallet(prev => prev - amount);
+          setTotalSpent(prev => prev + amount);
+        }
+        setTurnPhase('invest');
+      };
+
+      const selectInvestment = (inv) => {
+        setPendingInvestment(inv);
+        setInvestAmount('');
+      };
+
+      const confirmInvestment = () => {
+        const amount = parseInt(investAmount) || 0;
+        if (amount > 0 && amount <= wallet) {
+          setWallet(prev => prev - amount);
+          setInvestments(prev => ({
+            ...prev,
+            [pendingInvestment.id]: {
+              amount: (prev[pendingInvestment.id]?.amount || 0) + amount,
+              history: [...(prev[pendingInvestment.id]?.history || []), (prev[pendingInvestment.id]?.amount || 0) + amount]
+            }
+          }));
+        }
+        setPendingInvestment(null);
+        setInvestAmount('');
+      };
+
+      const withdrawInvestment = (invId) => {
+        const amount = investments[invId]?.amount || 0;
+        if (amount > 0) {
+          setWallet(prev => prev + Math.floor(amount));
+          setInvestments(prev => { const n = {...prev}; delete n[invId]; return n; });
+        }
+      };
+
+      const simulateYear = () => {
+        const event = MARKET_EVENTS[Math.floor(Math.random() * MARKET_EVENTS.length)];
+        setCurrentMarketEvent(event);
+        const results = {};
+        const newInvestments = { ...investments };
+
+        Object.entries(investments).forEach(([invId, data]) => {
+          const investmentDef = INVESTMENTS.find(i => i.id === invId);
+          const returnRate = calculateReturn(investmentDef, event);
+          const newAmount = Math.max(0, data.amount * (1 + returnRate));
+          results[invId] = { before: data.amount, after: newAmount, returnRate: returnRate * 100, name: investmentDef.name, emoji: investmentDef.emoji };
+          newInvestments[invId] = { amount: newAmount, history: [...data.history, newAmount] };
+        });
+
+        setInvestments(newInvestments);
+        setYearResults(results);
+        const newNetWorth = wallet + Object.values(newInvestments).reduce((sum, inv) => sum + inv.amount, 0);
+        setTotalHistory(prev => [...prev, newNetWorth]);
+        if (newNetWorth > lifetimeHigh) setLifetimeHigh(newNetWorth);
+        setTurnPhase('results');
+      };
+
+      const nextYear = () => {
+        if (year >= totalYears) setGamePhase('gameOver');
+        else { setYear(prev => prev + 1); startNewYear(); }
+      };
+
+      const resetGame = () => setGamePhase('intro');
+      const netWorth = getNetWorth();
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6">
+          <div className="max-w-4xl mx-auto space-y-6">
+            
+            {/* Header */}
+            <Card className="bg-gradient-to-r from-blue-500 to-purple-500 text-white border-0">
+              <CardContent className="p-5">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div>
+                    <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
+                      <span className="text-3xl">🐷</span> The Long Game
+                    </h1>
+                    <p className="text-blue-100 mt-1">Build wealth over 20 years. Resist temptation. Learn compounding.</p>
+                  </div>
+                  {gamePhase !== 'intro' && (
+                    <div className="text-right">
+                      <div className="text-3xl font-bold">{formatMoney(netWorth)}</div>
+                      <div className="text-blue-100 text-sm">Net Worth • Year {year}/{totalYears}</div>
                     </div>
+                  )}
                 </div>
-                
-                <div class="hud-section hud-center">
-                    <div class="money-display">
-                        <span class="money-label">YOUR MONEY</span>
-                        <span class="money-value" id="money-display">$100</span>
+                {gamePhase !== 'intro' && (
+                  <div className="mt-4 h-2 bg-blue-400/30 rounded-full overflow-hidden">
+                    <div className="h-full bg-white rounded-full transition-all" style={{ width: `${(year / totalYears) * 100}%` }} />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* INTRO */}
+            {gamePhase === 'intro' && (
+              <>
+                <Card>
+                  <CardHeader><CardTitle><span className="text-xl">🎯</span> How It Works</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-gray-600">You start with <strong>$100</strong>. Over <strong>20 years</strong>, you'll:</p>
+                    <div className="grid gap-3">
+                      <div className="flex gap-3 items-start p-3 bg-green-50 rounded-lg">
+                        <span className="text-2xl">💰</span>
+                        <div><strong className="text-green-800">Earn Money</strong><p className="text-sm text-green-700">Allowance, chores, gifts</p></div>
+                      </div>
+                      <div className="flex gap-3 items-start p-3 bg-red-50 rounded-lg">
+                        <span className="text-2xl">🛍️</span>
+                        <div><strong className="text-red-800">Face Temptations</strong><p className="text-sm text-red-700">Spend or save? Your choice!</p></div>
+                      </div>
+                      <div className="flex gap-3 items-start p-3 bg-blue-50 rounded-lg">
+                        <span className="text-2xl">📊</span>
+                        <div><strong className="text-blue-800">Choose Investments</strong><p className="text-sm text-blue-700">Safe, risky, or gambling?</p></div>
+                      </div>
+                      <div className="flex gap-3 items-start p-3 bg-purple-50 rounded-lg">
+                        <span className="text-2xl">⏰</span>
+                        <div><strong className="text-purple-800">Watch Time Work</strong><p className="text-sm text-purple-700">See compounding in action</p></div>
+                      </div>
                     </div>
-                    <div class="progress-wrapper">
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="progress-fill"></div>
-                            <div class="progress-goal">
-                                <span id="goal-emoji">🚲</span>
-                                <span>$500</span>
-                            </div>
+                  </CardContent>
+                </Card>
+                <button onClick={startGame} className="w-full py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-bold text-lg hover:shadow-lg transition-all transform hover:scale-[1.02]">
+                  ▶️ Start Your Journey
+                </button>
+              </>
+            )}
+
+            {/* PLAYING */}
+            {gamePhase === 'playing' && (
+              <>
+                {/* Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Card className="bg-green-50 border-green-200"><CardContent className="p-3 text-center">
+                    <div className="text-xl font-bold text-green-700">{formatMoney(wallet)}</div>
+                    <div className="text-xs text-green-600">💵 Cash</div>
+                  </CardContent></Card>
+                  <Card className="bg-blue-50 border-blue-200"><CardContent className="p-3 text-center">
+                    <div className="text-xl font-bold text-blue-700">{formatMoney(netWorth - wallet)}</div>
+                    <div className="text-xs text-blue-600">📊 Invested</div>
+                  </CardContent></Card>
+                  <Card className="bg-purple-50 border-purple-200"><CardContent className="p-3 text-center">
+                    <div className="text-xl font-bold text-purple-700">{formatMoney(totalEarned)}</div>
+                    <div className="text-xs text-purple-600">💰 Earned</div>
+                  </CardContent></Card>
+                  <Card className="bg-red-50 border-red-200"><CardContent className="p-3 text-center">
+                    <div className="text-xl font-bold text-red-700">{formatMoney(totalSpent)}</div>
+                    <div className="text-xs text-red-600">🛍️ Spent</div>
+                  </CardContent></Card>
+                </div>
+
+                {/* EARN */}
+                {turnPhase === 'earn' && currentEarning && (
+                  <Card className="border-2 border-green-300 bg-gradient-to-r from-green-50 to-emerald-50">
+                    <CardHeader><CardTitle><span className="text-xl">💰</span> Year {year}: Earn Money!</CardTitle></CardHeader>
+                    <CardContent>
+                      <div className="text-center py-6">
+                        <div className="text-5xl mb-3">{currentEarning.text.split(' ')[0]}</div>
+                        <p className="text-lg text-gray-700">{currentEarning.text}</p>
+                        <p className="text-3xl font-bold text-green-600 mt-2">+{formatMoney(currentEarning.amount)}</p>
+                      </div>
+                      <button onClick={collectEarnings} className="w-full py-3 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600">
+                        Collect! 💵
+                      </button>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* SPEND */}
+                {turnPhase === 'spend' && (
+                  <Card className={`border-2 ${currentTemptation?.isEmergency ? 'border-orange-300 bg-gradient-to-r from-orange-50 to-amber-50' : 'border-pink-300 bg-gradient-to-r from-pink-50 to-rose-50'}`}>
+                    <CardHeader><CardTitle><span className="text-xl">{currentTemptation?.isEmergency ? '⚠️' : '🛍️'}</span> {currentTemptation?.isEmergency ? 'Emergency!' : 'Temptation...'}</CardTitle></CardHeader>
+                    <CardContent>
+                      {currentTemptation ? (
+                        <>
+                          <div className="text-center py-4">
+                            <div className="text-5xl mb-3">{currentTemptation.text.split(' ')[0]}</div>
+                            <p className="text-lg text-gray-700">{currentTemptation.text}</p>
+                            <p className="text-2xl font-bold text-red-600 mt-2">-{formatMoney(currentTemptation.amount)}</p>
+                            {currentTemptation.fomo && <p className="text-sm text-pink-600 mt-1 italic">"Everyone has one..."</p>}
+                          </div>
+                          <div className="flex gap-3">
+                            <button onClick={() => handleSpendDecision(true)} disabled={wallet < currentTemptation.amount}
+                              className={`flex-1 py-3 rounded-xl font-bold ${wallet >= currentTemptation.amount ? 'bg-pink-500 text-white hover:bg-pink-600' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}>
+                              {currentTemptation.isEmergency ? 'Pay It' : 'Buy It!'} 💸
+                            </button>
+                            {!currentTemptation.isEmergency && (
+                              <button onClick={() => handleSpendDecision(false)} className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300">
+                                Skip It 🙅
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center py-6">
+                          <div className="text-5xl mb-3">😌</div>
+                          <p className="text-lg text-gray-700">A peaceful year... no temptations!</p>
+                          <button onClick={() => handleSpendDecision(false)} className="mt-4 px-8 py-3 bg-blue-500 text-white rounded-xl font-bold hover:bg-blue-600">
+                            Continue ➡️
+                          </button>
                         </div>
-                    </div>
-                </div>
-                
-                <div class="hud-section hud-right">
-                    <div class="cash-display">
-                        <span class="cash-label">UNALLOCATED</span>
-                        <span class="cash-value" id="cash-remaining">$100</span>
-                    </div>
-                </div>
-            </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
 
-            <!-- Game Phases Container -->
-            <div class="game-content">
-                
-                <!-- PHASE: Allocation -->
-                <div id="phase-allocate" class="phase active">
-                    <h2 class="phase-title">Where will you invest?</h2>
-                    <p class="phase-hint">Use + and - to allocate your money, then click "End Month"</p>
-                    
-                    <div class="characters-row">
-                        <!-- Shelly -->
-                        <div class="char-card" data-char="shelly">
-                            <div class="char-glow green"></div>
-                            <div class="char-header">
-                                <span class="char-avatar">🐢</span>
-                                <div class="char-badge safe">SAFE</div>
-                            </div>
-                            <h3 class="char-name">Shelly</h3>
-                            <p class="char-subtitle">The Turtle</p>
-                            <p class="char-desc">"Slow and steady wins the race!"</p>
-                            <div class="char-return">+2% to +3%</div>
-                            <div class="char-invest">
-                                <button class="invest-btn minus" onclick="Game.adjust('shelly', -10)">−</button>
-                                <span class="invest-amount" id="invest-shelly">$0</span>
-                                <button class="invest-btn plus" onclick="Game.adjust('shelly', 10)">+</button>
-                            </div>
-                        </div>
+                {/* INVEST */}
+                {turnPhase === 'invest' && (
+                  <>
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+                        <CardTitle><span className="text-xl">📊</span> Invest Your Money</CardTitle>
+                        <span className="text-lg font-bold text-green-600">{formatMoney(wallet)} available</span>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-gray-600 mb-4">Choose where to put your money, or keep it as cash.</p>
                         
-                        <!-- Goldie -->
-                        <div class="char-card" data-char="goldie">
-                            <div class="char-glow yellow"></div>
-                            <div class="char-header">
-                                <span class="char-avatar">🪿</span>
-                                <div class="char-badge moderate">MODERATE</div>
+                        {Object.keys(investments).length > 0 && (
+                          <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                            <div className="text-sm font-medium text-blue-800 mb-2">Your Investments:</div>
+                            <div className="space-y-2">
+                              {Object.entries(investments).map(([invId, data]) => {
+                                const inv = INVESTMENTS.find(i => i.id === invId);
+                                return (
+                                  <div key={invId} className="flex justify-between items-center text-sm">
+                                    <span>{inv.emoji} {inv.name}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold">{formatMoney(data.amount)}</span>
+                                      <button onClick={() => withdrawInvestment(invId)} className="text-xs px-2 py-1 bg-white rounded hover:bg-gray-100">Withdraw</button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
-                            <h3 class="char-name">Goldie</h3>
-                            <p class="char-subtitle">The Goose</p>
-                            <p class="char-desc">"Golden eggs... usually!"</p>
-                            <div class="char-return">-10% to +15%</div>
-                            <div class="char-invest">
-                                <button class="invest-btn minus" onclick="Game.adjust('goldie', -10)">−</button>
-                                <span class="invest-amount" id="invest-goldie">$0</span>
-                                <button class="invest-btn plus" onclick="Game.adjust('goldie', 10)">+</button>
-                            </div>
-                        </div>
-                        
-                        <!-- Rocket -->
-                        <div class="char-card" data-char="rocket">
-                            <div class="char-glow orange"></div>
-                            <div class="char-header">
-                                <span class="char-avatar">🐰</span>
-                                <div class="char-badge risky">RISKY</div>
-                            </div>
-                            <h3 class="char-name">Rocket</h3>
-                            <p class="char-subtitle">The Rabbit</p>
-                            <p class="char-desc">"To the moon! ...or not"</p>
-                            <div class="char-return">-80% to +200%</div>
-                            <div class="char-invest">
-                                <button class="invest-btn minus" onclick="Game.adjust('rocket', -10)">−</button>
-                                <span class="invest-amount" id="invest-rocket">$0</span>
-                                <button class="invest-btn plus" onclick="Game.adjust('rocket', 10)">+</button>
-                            </div>
-                        </div>
-                        
-                        <!-- Mystery -->
-                        <div class="char-card" data-char="mystery">
-                            <div class="char-glow purple"></div>
-                            <div class="char-header">
-                                <span class="char-avatar">📦</span>
-                                <div class="char-badge danger">TRAP!</div>
-                            </div>
-                            <h3 class="char-name">Mystery</h3>
-                            <p class="char-subtitle">The Box</p>
-                            <p class="char-desc">"Sparkly! Exciting! Empty!"</p>
-                            <div class="char-return">-90% to +50%</div>
-                            <div class="char-invest">
-                                <button class="invest-btn minus" onclick="Game.adjust('mystery', -10)">−</button>
-                                <span class="invest-amount" id="invest-mystery">$0</span>
-                                <button class="invest-btn plus" onclick="Game.adjust('mystery', 10)">+</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button class="btn btn-action" onclick="Game.endMonth()">
-                        End Month →
-                    </button>
-                </div>
-                
-                <!-- PHASE: Event -->
-                <div id="phase-event" class="phase">
-                    <div class="event-card">
-                        <div class="event-icon" id="event-icon">🎉</div>
-                        <h2 class="event-title" id="event-title">Something Happened!</h2>
-                        <p class="event-desc" id="event-desc">Description goes here</p>
-                        <div class="event-choices" id="event-choices"></div>
-                    </div>
-                </div>
-                
-                <!-- PHASE: Results -->
-                <div id="phase-results" class="phase">
-                    <h2 class="phase-title">Month <span id="result-month">1</span> Results</h2>
-                    
-                    <div class="results-grid" id="results-grid"></div>
-                    
-                    <div class="results-summary">
-                        <div class="summary-row">
-                            <span>Started with</span>
-                            <span id="summary-start">$100</span>
-                        </div>
-                        <div class="summary-row">
-                            <span>Investment returns</span>
-                            <span id="summary-invest" class="positive">+$5</span>
-                        </div>
-                        <div class="summary-row" id="summary-event-row">
-                            <span>Life events</span>
-                            <span id="summary-event">$0</span>
-                        </div>
-                        <div class="summary-row total">
-                            <span>NEW TOTAL</span>
-                            <span id="summary-total">$105</span>
-                        </div>
-                    </div>
-                    
-                    <button class="btn btn-action" onclick="Game.nextTurn()">
-                        Continue →
-                    </button>
-                </div>
-            </div>
-        </div>
+                          </div>
+                        )}
 
-        <!-- ==================== GAME OVER ==================== -->
-        <div id="screen-gameover" class="screen">
-            <div class="gameover-content">
-                <div class="gameover-icon" id="gameover-icon">🎉</div>
-                <h1 class="gameover-title" id="gameover-title">Amazing!</h1>
-                <p class="gameover-message" id="gameover-message">You did it!</p>
-                
-                <div class="gameover-stats">
-                    <div class="stat-box">
-                        <span class="stat-value" id="stat-money">$523</span>
-                        <span class="stat-label">Final Amount</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-value" id="stat-months">8</span>
-                        <span class="stat-label">Months</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-value" id="stat-best">🐢</span>
-                        <span class="stat-label">Best Pick</span>
-                    </div>
-                </div>
-                
-                <div class="lessons-box">
-                    <h3>💡 What You Learned</h3>
-                    <ul id="lessons-list"></ul>
-                </div>
-                
-                <div class="gameover-buttons">
-                    <button class="btn btn-play" onclick="Game.playAgain()">
-                        <span class="btn-icon">🔄</span>
-                        <span class="btn-text">Play Again</span>
-                    </button>
-                    <button class="btn btn-secondary" onclick="UI.showTitle()">
-                        <span class="btn-icon">🏠</span>
-                        <span class="btn-text">Main Menu</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- ==================== MODALS ==================== -->
-        
-        <!-- Leaderboard Modal -->
-        <div id="modal-leaderboard" class="modal">
-            <div class="modal-box">
-                <button class="modal-close" onclick="UI.closeModal()">×</button>
-                <h2 class="modal-title">🏆 Leaderboard</h2>
-                <div class="leaderboard-list" id="leaderboard-list">
-                    <div class="empty-state">No games yet! Play to get on the board.</div>
-                </div>
-                <button class="btn btn-small" onclick="Storage.clearAll()">Clear History</button>
-            </div>
-        </div>
-        
-        <!-- How to Play Modal -->
-        <div id="modal-howto" class="modal">
-            <div class="modal-box">
-                <button class="modal-close" onclick="UI.closeModal()">×</button>
-                <h2 class="modal-title">❓ How to Play</h2>
-                <div class="howto-content">
-                    <div class="howto-step">
-                        <span class="step-num">1</span>
-                        <p><strong>Pick a goal</strong> - What are you saving for?</p>
-                    </div>
-                    <div class="howto-step">
-                        <span class="step-num">2</span>
-                        <p><strong>Invest your money</strong> each month with the 4 characters</p>
-                    </div>
-                    <div class="howto-step">
-                        <span class="step-num">3</span>
-                        <p><strong>Watch it grow</strong> (or shrink!) based on risk</p>
-                    </div>
-                    <div class="howto-step">
-                        <span class="step-num">4</span>
-                        <p><strong>Handle events</strong> - life throws surprises!</p>
-                    </div>
-                    <div class="howto-step">
-                        <span class="step-num">5</span>
-                        <p><strong>Reach $500</strong> in 10 months to win!</p>
-                    </div>
-                    
-                    <h3 style="margin-top: 20px;">The Characters</h3>
-                    <div class="howto-chars">
-                        <div><span>🐢</span> Shelly - Always safe, small gains</div>
-                        <div><span>🪿</span> Goldie - Usually good, sometimes bad</div>
-                        <div><span>🐰</span> Rocket - Big wins OR big losses</div>
-                        <div><span>📦</span> Mystery - Looks fun, usually loses!</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+                        <div className="grid gap-3">
+                          {INVESTMENTS.map(inv => (
+                            <button key={inv.id} onClick={() => selectInvestment(inv)} disabled={wallet <= 0}
+                              className={`p-4 rounded-xl border-2 text-left transition-all ${pendingInvestment?.id === inv.id ? `bg-gradient-to-r ${inv.bgGradient} ${inv.borderColor} shadow-md` : `bg-white border-gray-200 ${wallet > 0 ? 'hover:border-gray-300' : 'opacity-50'}`}`}>
+                              <div className="flex justify-between items-start">
+                                <div className="flex gap-3">
+                                  <span className="text-3xl">{inv.emoji}</span>
+                                  <div>
+                                    <div className="font-bold">{inv.name}</div>
+                                    <div className={`text-sm ${inv.textColor}`}>{inv.description}</div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-xs text-gray-500 mb-1">Risk</div>
+                                  <RiskIndicator level={inv.riskLevel} />
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
 
-    <script src="js/data.js"></script>
-    <script src="js/storage.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/game.js"></script>
+                        {pendingInvestment && (
+                          <div className="mt-4 p-4 bg-gray-50 rounded-xl">
+                            <label className="text-sm font-medium text-gray-700">Invest in {pendingInvestment.name}:</label>
+                            <div className="flex gap-2 mt-1">
+                              <input type="number" value={investAmount} onChange={(e) => setInvestAmount(e.target.value)}
+                                placeholder="Amount" max={wallet} min={0} className="flex-1 px-3 py-2 border rounded-lg" />
+                              <button onClick={() => setInvestAmount(Math.floor(wallet / 2).toString())} className="px-3 py-2 bg-gray-200 rounded-lg text-sm hover:bg-gray-300">Half</button>
+                              <button onClick={() => setInvestAmount(Math.floor(wallet).toString())} className="px-3 py-2 bg-gray-200 rounded-lg text-sm hover:bg-gray-300">All</button>
+                              <button onClick={confirmInvestment} disabled={!investAmount || parseInt(investAmount) <= 0 || parseInt(investAmount) > wallet}
+                                className="px-4 py-2 bg-blue-500 text-white rounded-lg font-bold disabled:bg-gray-300 hover:bg-blue-600">Invest</button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2 italic">{pendingInvestment.explanation}</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <button onClick={simulateYear} className="w-full py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-bold text-lg hover:shadow-lg">
+                      ⏰ End Year {year} & See Results
+                    </button>
+                  </>
+                )}
+
+                {/* RESULTS */}
+                {turnPhase === 'results' && (
+                  <>
+                    {currentMarketEvent && (
+                      <Card className={`border-2 ${Object.values(currentMarketEvent.effects).some(e => e > 1) ? 'border-green-300 bg-gradient-to-r from-green-50 to-emerald-50' : Object.values(currentMarketEvent.effects).some(e => e < 1) ? 'border-red-300 bg-gradient-to-r from-red-50 to-orange-50' : 'border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50'}`}>
+                        <CardContent className="py-4">
+                          <div className="flex items-center gap-3">
+                            <span className="text-3xl">{currentMarketEvent.name.split(' ')[0]}</span>
+                            <div><div className="font-bold">{currentMarketEvent.name}</div><div className="text-sm text-gray-600">{currentMarketEvent.description}</div></div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    <Card>
+                      <CardHeader><CardTitle><span className="text-xl">📊</span> Year {year} Results</CardTitle></CardHeader>
+                      <CardContent>
+                        {Object.keys(yearResults || {}).length > 0 ? (
+                          <div className="space-y-3">
+                            {Object.entries(yearResults).map(([invId, result]) => {
+                              const isUp = result.returnRate >= 0;
+                              const inv = INVESTMENTS.find(i => i.id === invId);
+                              return (
+                                <div key={invId} className={`p-4 rounded-xl border-2 ${inv.borderColor} bg-gradient-to-r ${inv.bgGradient}`}>
+                                  <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-2xl">{result.emoji}</span>
+                                      <div>
+                                        <div className="font-bold">{result.name}</div>
+                                        <div className={`text-sm font-medium ${isUp ? 'text-green-600' : 'text-red-600'}`}>
+                                          {isUp ? '📈' : '📉'} {isUp ? '+' : ''}{result.returnRate.toFixed(1)}%
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="text-lg font-bold">{formatMoney(result.after)}</div>
+                                      <div className={`text-sm ${isUp ? 'text-green-600' : 'text-red-600'}`}>
+                                        {isUp ? '+' : ''}{formatMoney(result.after - result.before)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 text-gray-500">
+                            <div className="text-4xl mb-2">💵</div>
+                            <p>You kept all your money as cash this year.</p>
+                            <p className="text-sm">Cash is safe but doesn't grow!</p>
+                          </div>
+                        )}
+                        <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl">
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium">Total Net Worth:</span>
+                            <span className="text-2xl font-bold text-purple-700">{formatMoney(netWorth)}</span>
+                          </div>
+                          <MiniChart data={totalHistory} color="bg-purple-500" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <button onClick={nextYear} className="w-full py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-bold text-lg hover:shadow-lg">
+                      {year >= totalYears ? '🎉 See Final Results' : `➡️ Continue to Year ${year + 1}`}
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* GAME OVER */}
+            {gamePhase === 'gameOver' && (
+              <>
+                <Card className="bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-300 border-2">
+                  <CardHeader><CardTitle><span className="text-2xl">🏆</span> 20-Year Journey Complete!</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="text-center py-4">
+                      <div className="text-5xl font-bold text-purple-700 mb-2">{formatMoney(netWorth)}</div>
+                      <div className="text-gray-600">Final Net Worth</div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 mt-4">
+                      <div className="text-center p-3 bg-white rounded-lg">
+                        <div className="text-xl font-bold text-green-600">{formatMoney(totalEarned)}</div>
+                        <div className="text-xs text-gray-500">Earned</div>
+                      </div>
+                      <div className="text-center p-3 bg-white rounded-lg">
+                        <div className="text-xl font-bold text-red-600">{formatMoney(totalSpent)}</div>
+                        <div className="text-xs text-gray-500">Spent</div>
+                      </div>
+                      <div className="text-center p-3 bg-white rounded-lg">
+                        <div className="text-xl font-bold text-blue-600">{formatMoney(lifetimeHigh)}</div>
+                        <div className="text-xs text-gray-500">Peak</div>
+                      </div>
+                    </div>
+                    <div className="mt-4"><MiniChart data={totalHistory} color="bg-purple-500" /></div>
+                    <div className="mt-4 p-4 bg-white rounded-lg">
+                      <div className="text-sm font-medium text-gray-700 mb-1">Your Annual Growth Rate:</div>
+                      <div className="text-2xl font-bold">
+                        {netWorth > 0 ? `${(((netWorth / 100) ** (1/20) - 1) * 100).toFixed(1)}%` : 'N/A'}
+                      </div>
+                      <div className="text-sm text-gray-500">S&P 500 historical average: ~10%/year</div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                  <CardHeader><CardTitle><span className="text-xl">💡</span> Key Lessons</CardTitle></CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    <p><span className="text-lg">🏦</span> <strong>Savings</strong> are safe but barely beat inflation.</p>
+                    <p><span className="text-lg">📈</span> <strong>Index funds</strong> historically win for most people.</p>
+                    <p><span className="text-lg">🎯</span> <strong>Stock picking</strong> is hard—most pros lose to the index.</p>
+                    <p><span className="text-lg">🪙</span> <strong>Crypto</strong> is extremely volatile. Most lose money.</p>
+                    <p><span className="text-lg">🎰</span> <strong>Gambling</strong> is designed to take your money.</p>
+                    <p><span className="text-lg">⏰</span> <strong>Time</strong> is your superpower—start early!</p>
+                  </CardContent>
+                </Card>
+
+                <button onClick={resetGame} className="w-full py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-bold text-lg hover:shadow-lg">
+                  🔄 Play Again
+                </button>
+              </>
+            )}
+
+            <div className="text-center text-gray-400 text-sm py-4">Made with ❤️ to help kids understand money</div>
+          </div>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<TheLongGame />);
+  </script>
 </body>
 </html>
